@@ -1,56 +1,347 @@
 <!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+
+<title>i-Know</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="//maxcdn.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css" rel="stylesheet" id="bootstrap-css">
+
+<link rel="stylesheet" href="chat.css" crossorigin="anonymous">
+<script src="http://smartdoe.cminl.oa/launchChrome.js?v=1811140812"></script>   
+<!--script src="../js/launchChrome_NEW.js"></script-->  
+<script src="//cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js"></script>
+<script type="text/javascript">    
+var WebUrlPort = document.location.host; //桌機 
+//var ajaxUrlPort = '10.55.52.98:31081'; //hpc
+//var ajaxUrlPort = '127.0.0.1:83';
+var ajaxUrlPort = '10.55.8.201:84';
+//var iknowPath = "http://10.56.211.24:4996/I_Know"; //行慶桌機
+var iknowPath = "http://10.56.211.124:8120/I_Know"; //FPC
+
+var currentPath = window.location.href;
+var currentPage = window.location.pathname.substring(window.location.pathname.lastIndexOf('/') + 1);
+var ssoUrl = "http://10.55.8.201:83/Publish/api/SSO";
+var PERNR ='';
+function getCurrentTime(){
+	var today = new Date();
+	
+	m = today.getMonth()+1;
+	if(m < 10) m = '0'+m;
+	d = today.getDate();
+	if(d < 10) d = '0'+d;
+    h = today.getHours();
+	if(h < 10) h = '0'+h;
+	mi = today.getMinutes();
+	if(mi < 10) mi = '0'+mi;
+	s = today.getSeconds();
+	if(s < 10) s = '0'+s;
+	return m+'-'+d+' '+h+':'+mi+':'+s;
+}	 
+$( document ).ready(function() { 
+	var query = window.location.search.substring(1);
+	var qs = parse_query_string(query);
+	//SSO 取得User資料
+	var helloContent = '';
+	if (qs['userChineseName'] !== undefined){
+		userChineseName = qs['userChineseName'];
+		PERNR = qs['PERNR'];
+		GENDER = qs['GENDER'];
+		if(parseInt(GENDER)%2 == 1)	{
+			GENDER_ICON = 'male1';
+			helloContent = '帥哥';			
+			$('body').css({background : 'linear-gradient(to right, #91EAE4, #86A8E7, #7F7FD5)'});
+			$('html').css({background : 'linear-gradient(to right, #91EAE4, #86A8E7, #7F7FD5)'}); 
+			$('[name="robot"]').attr("src" , 'img/forMale2.jpg');			 
+		}else if(parseInt(GENDER)%2 == 0){
+			GENDER_ICON = 'female1';
+			helloContent = '靓妹';	
+			$('body').css({background : 'linear-gradient(to right, #F4ACF9, #F9ACE2, #F9ACB9)'});
+			$('html').css({background : 'linear-gradient(to right, #F4ACF9, #F9ACE2, #F9ACB9)'});
+			$('[name="robot"]').attr("src", 'img/forFemale2.jpg');			
+		}
+		/*if(GENDER > 1 )	{
+			GENDER_ICON = 'female1';
+			helloContent = '靓妹';	
+			$('body').css({background : 'linear-gradient(to right, #F4ACF9, #F9ACE2, #F9ACB9)'});
+			$('html').css({background : 'linear-gradient(to right, #F4ACF9, #F9ACE2, #F9ACB9)'});
+			$('[name="robot"]').attr("src", 'img/forFemale2.jpg');			
+		}*/		
+		console.log(userChineseName+' '+PERNR+' '+GENDER)
+		window.history.replaceState({}, document.title, window.location.pathname);
+		//alert('Hi~ '+userChineseName+' 歡迎您!!!!');
+		$('#userChineseName').html(userChineseName+' '+helloContent+'您好 ~ ')
+	}else{
+		window.location.href = ssoUrl+"?redirectUrl="+currentPath;
+	}
+	$("#card").height(document.body.offsetHeight-50)
+	$("#card").width(document.body.offsetWidth-50)	
+	$("#robotFirstTime").html(getCurrentTime());
+	
+	var input = document.getElementById("chat"); 
+	input.addEventListener("keyup", function(event) {
+	  if (event.keyCode === 13) {
+	   event.preventDefault();
+	   chatLog();
+	  }
+	});
+});
+$(window).resize(function() {
+	$("#card").width(document.body.offsetWidth-50)
+	$("#card").height(document.body.offsetHeight-50)
+});
+var chatList = '';
+var messageCount = 0;
+function chatLog(){
+	chat = $('input#chat').val();
+	console.log('chat:'+chat);
+	
+	if (PERNR != '' && chat.trim() != ''){
+		$.ajax({ 
+			url: "http://"+ajaxUrlPort+"/chatLog",	
+			type: "GET",
+			dataType: 'json',
+			data:  {PERNR:PERNR, chat:chat} ,
+			contentType: "application/json; charset=utf-8",
+			traditional: true,
+			success: function (data) { 
+				
+				messageCount = messageCount + 1;				
+				$("#messages").html(messageCount+' Messages')
+				//console.log($("#chatList").html());
+				//console.log(data);	
+				
+				iknow(data[1],PERNR,chat); 
+				chatList = $("#chatList").html();
+				newChat = '<div class="d-flex justify-content-end mb-4"><div class="msg_cotainer_send">'+chat+'<span class="msg_time_send" style="margin-left:-60px;">'+data[0]+'</span></div><div class="img_cont_msg"><img src="img/'+GENDER_ICON+'.jpg" class="rounded-circle user_img_msg"></div></div>'
+				$("#chatList").html(chatList+newChat)
+			},				
+			error: function(xhr) {
+			  alert('Ajax request 發生錯誤:'+JSON.stringify(xhr));
+			}
+		}); 
+	}	
+}			
+function iknow(Chat_ID,PERNR,chat){
+	var myJSON = {
+		"Chat_ID":Chat_ID,
+		"user_ID":PERNR,
+		"user_question": chat,
+		"application": "",
+		"year": "",
+		"month":""		
+		};
+	console.log('myJSON:')	
+	console.log(myJSON)	
+	$.ajax({
+		url: iknowPath,
+		type: "POST",
+		//data: JSON.stringify(myJSON),	
+		dataType: 'json',
+		data:  JSON.stringify(myJSON) ,
+		contentType: "application/json; charset=utf-8",
+		traditional: true,
+		success: function (data) {
+			console.log('iknow data:')
+			console.log(data)
+			answerNo = 123
+			if (data.answerType == 'lead'){
+				chatList = $("#chatList").html(); 
+				newChatContent = '';
+				Object.keys(data).forEach(function(key) {
+				  //console.table('Key : ' + key + ', Value : ' + data[key])
+				  //newChatContent = newChatContent+key+' : '+data[key]+'<br>'
+				})
+				//getAnswer(app,yearmonth,answerNo,Chat_ID)
+				app = data['application'];
+				yearmonth = data['year']+data['month'];
+				newChat = '<div class="d-flex justify-content-start mb-4"><div class="img_cont_msg"><img name="robot" src="img/robot1.png" class="rounded-circle user_img_msg"></div><div class="msg_cotainer" title="'+answerNo+'">你想詢問以下哪個問題? (請點選)<span class="msg_time" id="robotFirstTime" style="margin-left:2px;margin-top:30px;">'+getCurrentTime()+'</span></div></div>'
+				
+				newChat = newChat+'<div class="d-flex justify-content-start mb-4">';
+				
+				newChat = newChat+'<div style="cursor: pointer;" class="msg_cotainer" onclick="getAnswer(\''+app+'\',\''+yearmonth+'\',\''+data['data'][0]['answerNo']+'\',\''+Chat_ID+'\')" title="'+data['data'][0]['answerNo']+'">1. '+data['data'][0]['question']+'</div>';
+				
+				newChat = newChat+'<div style="cursor: pointer;" class="msg_cotainer" onclick="getAnswer(\''+app+'\',\''+yearmonth+'\',\''+data['data'][1]['answerNo']+'\',\''+Chat_ID+'\')" title="'+data['data'][1]['answerNo']+'">2. '+data['data'][1]['question']+'</div>';
+				
+				newChat = newChat+'<div style="cursor: pointer;" class="msg_cotainer" onclick="getAnswer(\''+app+'\',\''+yearmonth+'\',\'Q001\',\''+Chat_ID+'\')" title="'+data['data'][2]['answerNo']+'">3. '+data['data'][2]['question']+'</div></div>';
+				
+				$("#chatList").html(chatList+newChat);
+				if(GENDER == 1)	{
+					$('[name="robot"]').attr("src" , 'img/forMale2.jpg');			 
+				}else {
+					$('[name="robot"]').attr("src", 'img/forFemale2.jpg');			
+				}
+				/*
+			   document.getElementById("search_answer").innerHTML ='<p>你想詢問以下哪個問題?</p>';
+			   var SelectAns=data.data
+			   for (i in SelectAns){
+				   Btn_ID = "LeadQ" + i.toString();
+				   console.log(Btn_ID);
+				   AnsBot='<button id="' + Btn_ID + '" class="astext" onclick="MQ_Query(this.id)">'+ SelectAns[i].question +"</button><br><br>";
+				   console.log(AnsBot)
+				   $('#search_answer').append(AnsBot);
+			   }*/
+			}else if (data.answerType == "standard"){				
+				app = data['application'];
+				yearmonth = data['year']+''+data['month'];
+				answerNo = data['data'][0]['answerNo'];
+				console.log(app+' '+yearmonth+' '+answerNo)
+				getAnswer(app,yearmonth,answerNo,Chat_ID);			
+			}
+		},				
+		error: function(xhr) {
+		  alert('Ajax request 發生錯誤:'+JSON.stringify(xhr));
+		}
+	});
+	
+}
+
+function getAnswer(app,yearmonth,answerNo,Chat_ID){
+	//http://10.55.8.201:84/Q001?app=所有應用&yearmonth=201908
+	$.ajax({
+		url: "http://10.55.8.201:84/"+answerNo,
+		type: "GET",
+		data:{ app:app , yearmonth:yearmonth , Chat_ID:Chat_ID},
+		dataType: 'json',
+		contentType: "application/json; charset=utf-8",
+		traditional: true,
+		success: function (data) {
+			console.log('getAnswer:');
+			console.log(data);
+			console.log(Object.keys(data)+' '+Object.values(data));
+			chatList = $("#chatList").html(); 
+			
+			newChatContent = '';
+			 
+			Object.keys(data).forEach(function(key) {
+			  console.table('Key : ' + key + ', Value : ' + data[key])
+			  newChatContent = newChatContent+key+' : '+data[key]+'<br>'
+			})
+			
+			newChat = '<div class="d-flex justify-content-start mb-4"><div class="img_cont_msg"><img name="robot" src="img/robot1.png" class="rounded-circle user_img_msg"></div><div class="msg_cotainer" title="'+answerNo+'">'+newChatContent+'<span class="msg_time" id="robotFirstTime" style="margin-left:2px;margin-top:30px;">'+getCurrentTime()+'</span></div></div>';
+			$("#chatList").html(chatList+newChat);
+			if(GENDER == 1)	{
+				$('[name="robot"]').attr("src" , 'img/forMale2.jpg');			 
+			}else {
+				$('[name="robot"]').attr("src", 'img/forFemale2.jpg');			
+			}
+		},				
+		error: function(xhr) {
+		  alert('Ajax request 發生錯誤:'+JSON.stringify(xhr));
+		}
+	});
+		
+
+}
+
+</script>
+</head>
+<body>
+    <!DOCTYPE html>
 <html>
-    <head>
-        <!-- Configuration Start: Please customize following configuration -->
-        <title>布丁布丁吃什麼？</title>
-        <!-- Configuration End -->
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link href='style.css' rel='stylesheet' type='text/css'/>
-        <script type="text/javascript" src="cordova.js"></script>
-    </head>
-    <body>
-        <div id="content">
-            <div class="content-container">
-                <img src="spin.svg" />
-                <div>
-                    <!-- Configuration Start: Please customize following configuration -->
-                    <h1>布丁布丁吃什麼？</h1>
-                    <div class="description"><span>我不是在實驗室<br />就是在前往實驗室的路上</span></div>
-                    <!-- Configuration End -->
-                </div>
-            </div>
-        </div>
-        <div class="footer" id="footer">
-<div class="container clearfix">
-<p>
-<span class="blog-copyright">
-    <!-- Configuration Start: Please customize following configuration -->
-    © Copyright 2017 <a href="http://blog.pulipuli.info/">布丁布丁吃什麼？</a>
-    <!-- Configuration End -->
-</span>
-</p>
-</div>
-</div>
-        <script type="text/javascript">
-                // device APIs are available
-                function onDeviceReady() {
-                    if (history.length > 1) {
-                        navigator.app.exitApp();
-                        return;
-                    }
-                    
-                    //alert(navigator.network.connection.type);
-                    if (navigator.network.connection.type === Connection.NONE) {
-                        //location.replace("offline.html");
-                        location.href = "offline.html";
-                    } else {
-                        // <!-- Configuration Start: Please customize following configuration -->
-                        location.replace("http://blog.pulipuli.info/");
-                        // <!-- Configuration End -->
-                    }
-                }
-                document.addEventListener("deviceready", onDeviceReady, false);
-        </script>
-    </body>
+	<head>
+		<title>Chat</title>
+		<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+		<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.5.0/css/all.css" integrity="sha384-B4dIYHKNBt8Bc12p+WXckhzcICo0wtJAoU8YZTY5qE0Id1GSseTk6S+L3BlXeVIU" crossorigin="anonymous">
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+		<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/malihu-custom-scrollbar-plugin/3.1.5/jquery.mCustomScrollbar.min.css">
+		<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/malihu-custom-scrollbar-plugin/3.1.5/jquery.mCustomScrollbar.min.js"></script>
+	</head>
+	<!--Coded With Love By Mutiullah Samim-->
+	<body>
+	
+		<div class="container-fluid h-100">
+			<div class="row justify-content-center h-100">
+			 
+				
+				<div class="  chat" >
+					<div class="card" id="card"  >
+						<div class="card-header msg_head" style="padding:0 0">
+							<div class="d-flex bd-highlight">
+								<div class="img_cont">
+									<!--img src="https://static.turbosquid.com/Preview/001292/481/WV/_D.jpg" class="rounded-circle user_img">
+									<span class="online_icon"></span-->
+								</div>
+								<div class="user_info">
+									<span>i-Know &nbsp;&nbsp;&nbsp; Hi~</span><span id="userChineseName"></span>
+									<p id="messages">0 Messages</p>
+								</div>
+								<!--div class="video_cam">
+									<span><i class="fas fa-video"></i></span>
+									<span><i class="fas fa-phone"></i></span>
+								</div-->
+							</div>
+							<span id="action_menu_btn"><i class="fas fa-ellipsis-v"></i></span>
+							<div class="action_menu">
+								<ul>
+									<li><i class="fas fa-user-circle"></i> View profile</li>
+									<li><i class="fas fa-users"></i> Add to close friends</li>
+									<li><i class="fas fa-plus"></i> Add to group</li>
+									<li><i class="fas fa-ban"></i> Block</li>
+								</ul>
+							</div>
+						</div>
+						<div class="card-body msg_card_body">
+							<div class="d-flex justify-content-start mb-4">
+								<div class="img_cont_msg">
+									<img name="robot" src="img/forMale2.jpg" class="rounded-circle user_img_msg">
+								</div>
+								<div class="msg_cotainer">
+									請問能為您做什麼 ?
+									<span class="msg_time" id="robotFirstTime" style="margin-left:2px;margin-top:30px;">8:40 AM, Today</span>
+								</div>
+							</div>
+							 
+							<div id="chatList">
+								 
+							</div>
+							 
+						</div>
+						<div class="card-footer">
+							<div class="input-group">
+								<div class="input-group-append">
+									<span class="input-group-text attach_btn"><i class=" "></i></span>
+								</div>
+								<!--textarea name="" id="chat" class="form-control type_msg" placeholder="Type your message..."></textarea-->
+								<input name="" id="chat" class="form-control type_msg" placeholder="Type your message..."></textarea>
+								<div class="input-group-append">
+									<span   class="input-group-text send_btn" onclick="chatLog();">Submit  </span>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</body>
+</html>
+<script type="text/javascript">
+$(document).ready(function(){
+	$('#action_menu_btn').click(function(){
+		$('.action_menu').toggle();
+	});
+});	
+
+function parse_query_string(query) {
+  var vars = query.split("&");
+  var query_string = {};
+  for (var i = 0; i < vars.length; i++) {
+	var pair = vars[i].split("=");
+	var key = decodeURIComponent(pair[0]);
+	var value = decodeURIComponent(pair[1]);
+	if (typeof query_string[key] === "undefined") {
+	  query_string[key] = decodeURIComponent(value);
+	} else if (typeof query_string[key] === "string") {
+	  var arr = [query_string[key], decodeURIComponent(value)];
+	  query_string[key] = arr;
+	} else {
+	  query_string[key].push(decodeURIComponent(value));
+	}
+  }
+  return query_string;
+}
+</script>
+</body>
 </html>
